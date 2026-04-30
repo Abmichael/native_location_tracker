@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.2.0
+
+- **Privacy Improvement**: Removed `ACCESS_BACKGROUND_LOCATION` and `RECEIVE_BOOT_COMPLETED` permissions on Android.
+- **Compliance**: Removed boot persistence and background restart workers (WorkManager) to simplify Play Store review and improve battery efficiency.
+- **Footprint**: Removed Android `WorkManager` dependency, reducing plugin binary size.
+- **Documentation**: Updated manifest requirements and setup guides in README.
+
 ## 0.1.0
 
 - Initial release.

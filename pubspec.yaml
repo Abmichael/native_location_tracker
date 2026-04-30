@@ -4,7 +4,7 @@ description: >
   Provides continuous tracking with native persistence and batch upload
   on both Android and iOS. Designed for ride-hailing, logistics, and
   fleet management applications.
-version: 0.1.0
+version: 0.2.0
 homepage: https://github.com/example/native_location_tracker
 repository: https://github.com/example/native_location_tracker
 issue_tracker: https://github.com/example/native_location_tracker/issues
