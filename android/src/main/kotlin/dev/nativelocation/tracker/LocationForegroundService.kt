@@ -272,14 +272,7 @@ class LocationForegroundService : Service() {
             .remove(KEY_STARTED_AT_MS)
             .apply()
 
-        // Only the notification action should force a server-side offline toggle.
-        if (goOffline) {
-            try {
-                nativeBuffer.updateDriverAvailability(isAvailable = false)
-            } catch (_: Exception) {
-                // Best effort.
-            }
-        }
+
 
         stopPeriodicUpload()
         stopStillHeartbeat()
@@ -712,8 +705,7 @@ class LocationForegroundService : Service() {
             startForeground(
                 NOTIFICATION_ID,
                 notification,
-                android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION or
-                    android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC,
+                android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION,
             )
         } else {
             startForeground(NOTIFICATION_ID, notification)

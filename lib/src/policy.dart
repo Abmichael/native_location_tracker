@@ -130,7 +130,8 @@ class TrackingPolicy {
         intervalMs = _min(intervalMs, 2000); // At most 2 seconds
         distanceMeters = _min(distanceMeters, 10);
         priority = LocationPriority.high;
-        reason = 'Adaptive: fast movement (${speedKmh.toStringAsFixed(1)} km/h)';
+        reason =
+            'Adaptive: fast movement (${speedKmh.toStringAsFixed(1)} km/h)';
       } else if (speedKmh < SpeedThresholds.walking) {
         // Walking - moderate frequency
         intervalMs = _max(intervalMs, 30000); // At least 30 seconds
@@ -208,7 +209,8 @@ class TrackingPolicy {
     final dLat = _toRadians(lat2 - lat1);
     final dLng = _toRadians(lng2 - lng1);
 
-    final a = _sin(dLat / 2) * _sin(dLat / 2) +
+    final a =
+        _sin(dLat / 2) * _sin(dLat / 2) +
         _cos(_toRadians(lat1)) *
             _cos(_toRadians(lat2)) *
             _sin(dLng / 2) *
@@ -256,8 +258,12 @@ class TrackingPolicy {
 
   static double _taylorSin(double x) {
     // Normalize to [-pi, pi]
-    while (x > 3.141592653589793) x -= 2 * 3.141592653589793;
-    while (x < -3.141592653589793) x += 2 * 3.141592653589793;
+    while (x > 3.141592653589793) {
+      x -= 2 * 3.141592653589793;
+    }
+    while (x < -3.141592653589793) {
+      x += 2 * 3.141592653589793;
+    }
 
     double result = 0;
     double term = x;
@@ -270,8 +276,12 @@ class TrackingPolicy {
 
   static double _taylorCos(double x) {
     // Normalize to [-pi, pi]
-    while (x > 3.141592653589793) x -= 2 * 3.141592653589793;
-    while (x < -3.141592653589793) x += 2 * 3.141592653589793;
+    while (x > 3.141592653589793) {
+      x -= 2 * 3.141592653589793;
+    }
+    while (x < -3.141592653589793) {
+      x += 2 * 3.141592653589793;
+    }
 
     double result = 1;
     double term = 1;

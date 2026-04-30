@@ -342,10 +342,12 @@ class _HomeState extends State<_Home> {
                   const SizedBox(height: 12),
                   
                   // Tracking Mode Dropdown
-                  Row(
+                  Wrap(
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    spacing: 12,
+                    runSpacing: 8,
                     children: [
                       const Text('Tracking Mode:'),
-                      const SizedBox(width: 12),
                       DropdownButton<TrackingMode>(
                         value: _mode,
                         onChanged: _isTracking
@@ -362,7 +364,6 @@ class _HomeState extends State<_Home> {
                           ),
                         ],
                       ),
-                      const Spacer(),
                       // Last Upload Info
                       Text(
                         lastUpload != null
