@@ -1,0 +1,20 @@
+name: native_location_tracker_example
+description: Example app for native_location_tracker plugin.
+version: 0.1.0
+
+environment:
+  sdk: ^3.9.2
+
+dependencies:
+  flutter:
+    sdk: flutter
+  native_location_tracker:
+    path: ../
+  permission_handler: ^11.3.1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+flutter:
+  uses-material-design: true

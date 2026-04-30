@@ -1,0 +1,34 @@
+name: native_location_tracker
+description: >
+  A robust, native-first background location plugin for Flutter.
+  Provides continuous tracking with native persistence and batch upload
+  on both Android and iOS. Designed for ride-hailing, logistics, and
+  fleet management applications.
+version: 0.1.0
+homepage: https://github.com/example/native_location_tracker
+repository: https://github.com/example/native_location_tracker
+issue_tracker: https://github.com/example/native_location_tracker/issues
+
+environment:
+  sdk: ^3.9.2
+  flutter: ">=3.3.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  device_info_plus: ^11.1.1
+  shared_preferences: ^2.3.3
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+
+flutter:
+  plugin:
+    platforms:
+      android:
+        package: dev.nativelocation.tracker
+        pluginClass: NativeLocationTrackerPlugin
+      ios:
+        pluginClass: NativeLocationTrackerPlugin
