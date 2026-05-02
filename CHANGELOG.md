@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.1
+
+- **pubspec.yaml Imporovement**: Added correct git links, shortened description and updated packages to latest versions.
+
 ## 0.2.0
 
 - **Privacy Improvement**: Removed `ACCESS_BACKGROUND_LOCATION` and `RECEIVE_BOOT_COMPLETED` permissions on Android.
