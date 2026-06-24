@@ -48,6 +48,31 @@ void main() {
       expect(args['distanceFilterMeters'], 20);
     });
 
+    test('notificationTapUri defaults to null and serializes', () {
+      final defaults = TrackingOptions(sessionId: 'test');
+      expect(defaults.notificationTapUri, isNull);
+      expect(defaults.toNativeArgs()['notificationTapUri'], isNull);
+
+      final withUri = TrackingOptions(
+        sessionId: 'test',
+        notificationTapUri: 'https://app.example.com/tracking?token=abc',
+      );
+      expect(
+        withUri.toNativeArgs()['notificationTapUri'],
+        'https://app.example.com/tracking?token=abc',
+      );
+    });
+
+    test('copyWith overrides notificationTapUri', () {
+      final original = TrackingOptions(sessionId: 'test');
+      final modified = original.copyWith(
+        notificationTapUri: 'myapp://tracking',
+      );
+
+      expect(original.notificationTapUri, isNull);
+      expect(modified.notificationTapUri, 'myapp://tracking');
+    });
+
     test('copyWith creates modified copy', () {
       final original = TrackingOptions(sessionId: 'original');
       final modified = original.copyWith(

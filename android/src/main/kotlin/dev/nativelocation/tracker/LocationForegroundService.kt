@@ -10,6 +10,7 @@ import android.content.Intent
 import android.content.SharedPreferences
 import android.content.pm.PackageManager
 import android.location.Location
+import android.net.Uri
 import android.os.BatteryManager
 import android.os.Build
 import android.os.IBinder
@@ -47,6 +48,7 @@ class LocationForegroundService : Service() {
         const val KEY_NOTIFICATION_TITLE = "notification_title"
         const val KEY_NOTIFICATION_TEXT = "notification_text"
         const val KEY_NOTIFICATION_ICON = "notification_icon"
+        const val KEY_NOTIFICATION_TAP_URI = "notification_tap_uri"
         const val KEY_STARTED_AT_MS = "service_started_at_ms"
         
         var isServiceRunning = false
@@ -103,6 +105,7 @@ class LocationForegroundService : Service() {
     private var notificationTitle: String = "Location tracking"
     private var notificationText: String = "Tap to open app"
     private var notificationIconName: String? = null
+    private var notificationTapUri: String? = null
 
     // Elapsed time base for notification chronometer
     private var startedAtMs: Long = 0L
@@ -270,6 +273,7 @@ class LocationForegroundService : Service() {
         prefs.edit()
             .remove(NativeLocationTrackerPlugin.KEY_SESSION_ID)
             .remove(KEY_STARTED_AT_MS)
+            .remove(KEY_NOTIFICATION_TAP_URI)
             .apply()
 
 
@@ -305,7 +309,17 @@ class LocationForegroundService : Service() {
     }
 
     private fun buildForegroundNotification(): Notification {
-        val notificationIntent = packageManager.getLaunchIntentForPackage(packageName) ?: Intent()
+        val tapUri = notificationTapUri ?: prefs.getString(KEY_NOTIFICATION_TAP_URI, null)
+        val notificationIntent = if (!tapUri.isNullOrBlank()) {
+            // App-supplied deep link / tap target. The plugin does not interpret
+            // the URI; it just opens it scoped to the host app's package.
+            Intent(Intent.ACTION_VIEW, Uri.parse(tapUri)).apply {
+                setPackage(packageName)
+                addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+            }
+        } else {
+            packageManager.getLaunchIntentForPackage(packageName) ?: Intent()
+        }
         val contentPendingIntent = PendingIntent.getActivity(
             this,
             0,
@@ -394,6 +408,8 @@ class LocationForegroundService : Service() {
         notificationText = intent.getStringExtra("notificationText") ?: "Tap to open app"
         notificationIconName = intent.getStringExtra("notificationIcon")
             ?: prefs.getString(KEY_NOTIFICATION_ICON, null)
+        notificationTapUri = intent.getStringExtra("notificationTapUri")
+            ?: prefs.getString(KEY_NOTIFICATION_TAP_URI, null)
 
         // Start timestamp for elapsed timer (persisted for restarts)
         startedAtMs = prefs.getLong(KEY_STARTED_AT_MS, 0L)
@@ -425,6 +441,7 @@ class LocationForegroundService : Service() {
             .putString(KEY_NOTIFICATION_TITLE, notificationTitle)
             .putString(KEY_NOTIFICATION_TEXT, notificationText)
             .putString(KEY_NOTIFICATION_ICON, notificationIconName)
+            .putString(KEY_NOTIFICATION_TAP_URI, notificationTapUri)
             .putLong(KEY_STARTED_AT_MS, startedAtMs)
             .apply()
     }

@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.3.0
+
+- **Notification tap target**: Added `TrackingOptions.notificationTapUri` (Android). When set, tapping the foreground notification fires an `ACTION_VIEW` intent for the given URI (scoped to the host app's package) instead of the default launcher intent. The plugin treats the URI as opaque — the host app composes it (e.g. a deep link to a tracking screen). Falls back to the launcher intent when null.
+
 ## 0.2.1
 
 - **pubspec.yaml Imporovement**: Added correct git links, shortened description and updated packages to latest versions.

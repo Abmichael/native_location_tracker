@@ -193,6 +193,7 @@ Options for starting the tracking service.
 - `intervalSeconds`: Desired time between location updates.
 - `distanceFilterMeters`: Desired distance between location updates.
 - `notificationTitle` / `notificationText`: (Android only) Text for the persistent Foreground Service notification.
+- `notificationTapUri`: (Android only) Opaque URI opened via `ACTION_VIEW` (scoped to the app's package) when the notification is tapped — e.g. a deep link to a tracking screen. The plugin does not interpret it; the app composes the full URI. If null, the app's default launcher intent is used.
 
 ### `UploadConfig`
 Configuration for native-side HTTP uploads.

@@ -70,6 +70,18 @@ class TrackingOptions {
   /// If null, uses the app's launcher icon.
   final String? notificationIcon;
 
+  /// URI to open when the foreground notification is tapped (Android only).
+  ///
+  /// When set, tapping the notification fires an `ACTION_VIEW` intent for this
+  /// URI (scoped to the host app's package) instead of the default launcher
+  /// intent. This lets the app route the user to a specific screen — for
+  /// example a deep link to the live tracking page.
+  ///
+  /// The plugin treats this as an opaque string and does not interpret it;
+  /// composing the URI (scheme, host, path, query) is the host app's
+  /// responsibility. If null, the app's default launcher intent is used.
+  final String? notificationTapUri;
+
   /// Whether adaptive sampling based on speed should be enabled.
   ///
   /// When true, the tracker may adjust intervals based on movement speed:
@@ -98,6 +110,7 @@ class TrackingOptions {
     this.notificationTitle = 'Location tracking active',
     this.notificationText = 'Tap to open app',
     this.notificationIcon,
+    this.notificationTapUri,
     this.enableAdaptiveSampling = true,
     this.stillHeartbeatSeconds = 12,
   });
@@ -152,6 +165,7 @@ class TrackingOptions {
       'notificationTitle': notificationTitle,
       'notificationText': notificationText,
       'notificationIcon': notificationIcon,
+      'notificationTapUri': notificationTapUri,
       'enableAdaptiveSampling': enableAdaptiveSampling,
       'stillHeartbeatMs': stillHeartbeatSeconds <= 0 ? 0 : stillHeartbeatSeconds * 1000,
     };
@@ -168,6 +182,7 @@ class TrackingOptions {
     String? notificationTitle,
     String? notificationText,
     String? notificationIcon,
+    String? notificationTapUri,
     bool? enableAdaptiveSampling,
     int? stillHeartbeatSeconds,
   }) {
@@ -182,6 +197,7 @@ class TrackingOptions {
       notificationTitle: notificationTitle ?? this.notificationTitle,
       notificationText: notificationText ?? this.notificationText,
       notificationIcon: notificationIcon ?? this.notificationIcon,
+      notificationTapUri: notificationTapUri ?? this.notificationTapUri,
       enableAdaptiveSampling:
           enableAdaptiveSampling ?? this.enableAdaptiveSampling,
       stillHeartbeatSeconds: stillHeartbeatSeconds ?? this.stillHeartbeatSeconds,
