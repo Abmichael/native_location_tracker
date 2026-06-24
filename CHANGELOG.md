@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.3.1
+
+- **Wider compatibility**: Relaxed the `device_info_plus` constraint to `>=11.1.1 <14.0.0`. The plugin only uses stable `androidInfo.id` / `iosInfo.identifierForVendor` APIs, so the previous `^13.1.0` pin needlessly forced consumers onto `win32 ^6` and conflicted with apps still on the `win32 5.x` plugin ecosystem.
+
 ## 0.3.0
 
 - **Notification tap target**: Added `TrackingOptions.notificationTapUri` (Android). When set, tapping the foreground notification fires an `ACTION_VIEW` intent for the given URI (scoped to the host app's package) instead of the default launcher intent. The plugin treats the URI as opaque — the host app composes it (e.g. a deep link to a tracking screen). Falls back to the launcher intent when null.
