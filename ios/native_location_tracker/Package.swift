@@ -5,7 +5,7 @@ import PackageDescription
 let package = Package(
     name: "native_location_tracker",
     platforms: [
-        .iOS("13.0")
+        .iOS("14.0")
     ],
     products: [
         .library(
