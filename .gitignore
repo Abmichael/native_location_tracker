@@ -4,6 +4,8 @@
 *.pyc
 *.swp
 .DS_Store
+.build/
+.swiftpm/
 .atom/
 .buildlog/
 .history

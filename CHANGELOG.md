@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.4.0
+
+- **Android**: Migrated to Flutter's built-in Kotlin support. The plugin no longer applies the Kotlin Gradle Plugin, removing the Flutter KGP compatibility warning.
+- **iOS**: Added Swift Package Manager support while retaining CocoaPods compatibility.
+- **Compatibility**: Raised the minimum SDK versions to Dart 3.12 and Flutter 3.44.
+
 ## 0.3.1
 
 - **Wider compatibility**: Relaxed the `device_info_plus` constraint to `>=11.1.1 <14.0.0`. The plugin only uses stable `androidInfo.id` / `iosInfo.identifierForVendor` APIs, so the previous `^13.1.0` pin needlessly forced consumers onto `win32 ^6` and conflicted with apps still on the `win32 5.x` plugin ecosystem.

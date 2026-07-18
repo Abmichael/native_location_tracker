@@ -3,7 +3,8 @@ description: Example app for native_location_tracker plugin.
 version: 0.1.0
 
 environment:
-  sdk: ^3.9.2
+  sdk: ^3.12.0
+  flutter: ">=3.44.0"
 
 dependencies:
   flutter:

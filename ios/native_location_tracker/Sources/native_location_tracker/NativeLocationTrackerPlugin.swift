@@ -4,7 +4,7 @@ import CoreLocation
 
 public class NativeLocationTrackerPlugin: NSObject, FlutterPlugin, FlutterStreamHandler {
   private var eventSink: FlutterEventSink?
-  private var stateEventSink: FlutterEventSink?
+  fileprivate var stateEventSink: FlutterEventSink?
   private let locationManager = LocationManager()
   private var sessionId: String?
 
