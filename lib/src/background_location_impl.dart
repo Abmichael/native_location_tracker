@@ -127,7 +127,7 @@ class BackgroundLocationImpl implements BackgroundLocationManager {
   double? _lastSpeed;
   DateTime? _lastParamsUpdate;
 
-  BackgroundLocationImpl({required UploadConfig config}) : _config = config;
+  BackgroundLocationImpl({required this._config});
 
   /// Read the latest native-stored upload config (including tokens).
   static Future<NativeUploadConfig?> getNativeUploadConfig() async {
