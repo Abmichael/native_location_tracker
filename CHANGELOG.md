@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.4.1
+
+- **iOS**: Raised minimum iOS deployment target to 14.0 (was 13.0) for SwiftPM.
+- **Android**: Updated background location implementation and dependency versions.
+
 ## 0.4.0
 
 - **Android**: Migrated to Flutter's built-in Kotlin support. The plugin no longer applies the Kotlin Gradle Plugin, removing the Flutter KGP compatibility warning.
