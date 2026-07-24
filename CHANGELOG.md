@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.4.2
+
+- **iOS**: Fixed the background upload path. It previously created a
+  `dataTask` with a completion handler on the background `URLSession`, which is
+  unsupported (background sessions only allow file-based upload/download tasks
+  and throw on completion-handler tasks) — so the BGProcessingTask flush never
+  worked. Background flushes now use a delegate-driven `uploadTask(fromFile:)`
+  that completes even while the app is suspended; queued rows are marked
+  in-flight when enqueued and deleted once the server confirms `2xx` (or reset
+  to pending on failure). The foreground/active path is unchanged. Added
+  `NativeLocationUploader.backgroundCompletionHandler` for optional host
+  `AppDelegate` relaunch wiring.
+
 ## 0.4.1
 
 - **iOS**: Raised minimum iOS deployment target to 14.0 (was 13.0) for SwiftPM.

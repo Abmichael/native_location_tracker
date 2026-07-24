@@ -228,6 +228,26 @@ final class NativeLocationVault {
         }
     }
 
+    /// Reset a specific set of rows back to pending (e.g. when one background
+    /// upload task fails, without disturbing other in-flight batches).
+    func resetPending(ids: [Int64]) {
+        guard !ids.isEmpty else { return }
+        dbQueue.sync {
+            guard let db = self.db else { return }
+            let placeholders = ids.map { _ in "?" }.joined(separator: ",")
+            let sql = "UPDATE locations SET status = 0 WHERE _id IN (\(placeholders))"
+
+            var stmt: OpaquePointer?
+            guard sqlite3_prepare_v2(db, sql, -1, &stmt, nil) == SQLITE_OK else { return }
+            defer { sqlite3_finalize(stmt) }
+
+            for (i, id) in ids.enumerated() {
+                sqlite3_bind_int64(stmt, Int32(i + 1), id)
+            }
+            sqlite3_step(stmt)
+        }
+    }
+
     // MARK: - Counts
 
     func getPendingCount() -> Int {
