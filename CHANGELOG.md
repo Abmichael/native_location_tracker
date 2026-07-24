@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.4.3
+
+- **iOS**: The plugin now captures the background-`URLSession` completion handler
+  itself via Flutter's app-delegate forwarding (`addApplicationDelegate` +
+  `application(_:handleEventsForBackgroundURLSession:completionHandler:)`), so iOS
+  can relaunch the app to finish suspended upload transfers. **No host
+  `AppDelegate` wiring is required** — this replaces the manual
+  `backgroundCompletionHandler` setup hinted at in 0.4.2.
+
 ## 0.4.2
 
 - **iOS**: Fixed the background upload path. It previously created a

@@ -12,6 +12,11 @@ public class NativeLocationTrackerPlugin: NSObject, FlutterPlugin, FlutterStream
     let channel = FlutterMethodChannel(name: "dev.nativelocation.tracker/methods", binaryMessenger: registrar.messenger())
     let instance = NativeLocationTrackerPlugin()
     registrar.addMethodCallDelegate(instance, channel: channel)
+
+    // Receive app-delegate callbacks (forwarded by FlutterAppDelegate) so the
+    // plugin can capture the background-URLSession completion handler itself —
+    // the host app needs no AppDelegate wiring.
+    registrar.addApplicationDelegate(instance)
     
     let eventChannel = FlutterEventChannel(name: "dev.nativelocation.tracker/events", binaryMessenger: registrar.messenger())
     eventChannel.setStreamHandler(instance)
@@ -24,6 +29,19 @@ public class NativeLocationTrackerPlugin: NSObject, FlutterPlugin, FlutterStream
     if #available(iOS 13.0, *) {
         BackgroundTaskManager.shared.registerBGTask()
     }
+  }
+
+  /// Captures the completion handler iOS provides when it relaunches the app to
+  /// finish background upload transfers, so the uploader can call it once all
+  /// session events are delivered (see NativeLocationUploader).
+  public func application(
+    _ application: UIApplication,
+    handleEventsForBackgroundURLSession identifier: String,
+    completionHandler: @escaping () -> Void
+  ) -> Bool {
+    guard identifier == "dev.nativelocation.upload" else { return false }
+    NativeLocationUploader.shared.backgroundCompletionHandler = completionHandler
+    return true
   }
 
   public func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
