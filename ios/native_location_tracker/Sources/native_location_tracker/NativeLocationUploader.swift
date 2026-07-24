@@ -48,9 +48,9 @@ final class NativeLocationUploader: NSObject, URLSessionDataDelegate {
         set { configLock.lock(); _apiBaseUrl = newValue; configLock.unlock() }
     }
 
-    /// Set by the host `AppDelegate` from
-    /// `application(_:handleEventsForBackgroundURLSession:completionHandler:)`
-    /// so the app can be relaunched to finish background transfers. Optional.
+    /// Set by the plugin (via Flutter's app-delegate forwarding) when iOS
+    /// relaunches the app to finish background transfers; invoked once all
+    /// session events are delivered. See NativeLocationTrackerPlugin.
     var backgroundCompletionHandler: (() -> Void)?
 
     // MARK: - State
