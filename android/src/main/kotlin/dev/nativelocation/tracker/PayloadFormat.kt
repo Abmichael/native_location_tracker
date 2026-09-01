@@ -71,10 +71,17 @@ internal class PayloadFormat private constructor(
                 }
 
                 PayloadFormat(
-                    // `has` rather than `optString`, so an explicit null —
-                    // meaning "post a bare array" — is not read as absent.
-                    rootKey = if (root.isNull("rootKey")) null
-                    else root.optString("rootKey", "points"),
+                    // Three cases, and `isNull` alone collapses two of them:
+                    // it answers true for a key that is absent as well as one
+                    // holding null. Absent means "unspecified", which is the
+                    // default envelope; an explicit null means "post a bare
+                    // array". Without the `has` check, any format that simply
+                    // did not mention rootKey lost its envelope.
+                    rootKey = when {
+                        !root.has("rootKey") -> "points"
+                        root.isNull("rootKey") -> null
+                        else -> root.optString("rootKey", "points")
+                    },
                     names = names,
                     timeFormat = root.optString("timeFormat", "epoch_millis"),
                     speedUnit = root.optString("speedUnit", "kmh"),

@@ -35,10 +35,19 @@ android {
 
     sourceSets {
         main.java.srcDirs += 'src/main/kotlin'
+        test.java.srcDirs += 'src/test/kotlin'
     }
 
     defaultConfig {
         minSdk 23
+    }
+
+    testOptions {
+        // The uploader logs through android.util.Log, which is a stub that
+        // throws in JVM unit tests. The tests here are about the JSON the
+        // uploader builds, so the logging is allowed to no-op rather than
+        // being worth a Robolectric runtime.
+        unitTests.returnDefaultValues = true
     }
 }
 
@@ -53,4 +62,10 @@ kotlin {
 dependencies {
     implementation 'com.google.android.gms:play-services-location:21.1.0'
     implementation 'androidx.core:core-ktx:1.12.0'
+
+    // Android stubs org.json in JVM unit tests — every call throws "not
+    // mocked" — so the real implementation is supplied for the tests that
+    // assert on the JSON the uploader builds.
+    testImplementation 'org.json:json:20231013'
+    testImplementation 'junit:junit:4.13.2'
 }
