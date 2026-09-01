@@ -47,6 +47,7 @@ library;
 // Models
 export 'src/location_point.dart';
 export 'src/upload_config.dart';
+export 'src/payload_format.dart';
 
 // Core API
 export 'src/tracking_options.dart';

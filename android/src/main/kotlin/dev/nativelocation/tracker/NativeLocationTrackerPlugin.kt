@@ -142,9 +142,13 @@ class NativeLocationTrackerPlugin: FlutterPlugin, MethodCallHandler, EventChanne
         val refreshToken = config?.get("refreshToken") as? String
         val refreshUrl = config?.get("refreshUrl") as? String
         val apiBaseUrl = config?.get("apiBaseUrl") as? String
-        
+        // The body's shape, as a JSON string. Stored verbatim and parsed at
+        // upload time, so a batch that goes out after the app is gone still
+        // knows what the server expects. Absent means the historical default.
+        val payloadFormat = config?.get("payloadFormat") as? String
+
         android.util.Log.i("NativeLocationTrackerPlugin", "Setting upload config: url=$uploadUrl")
-        
+
         // Save to main prefs (for LocationForegroundService to read on startup)
         prefs.edit()
           .putString("upload_url", uploadUrl)
@@ -152,8 +156,9 @@ class NativeLocationTrackerPlugin: FlutterPlugin, MethodCallHandler, EventChanne
           .putString("refresh_token", refreshToken)
           .putString("refresh_url", refreshUrl)
           .putString("api_base_url", apiBaseUrl)
+          .putString("payload_format", payloadFormat)
           .commit()  // Use commit() for synchronous write
-        
+
         // Also save to NativeBuffer's prefs directly
         val bufferPrefs = context.getSharedPreferences("nlt_buffer_config", Context.MODE_PRIVATE)
         bufferPrefs.edit()
@@ -162,6 +167,7 @@ class NativeLocationTrackerPlugin: FlutterPlugin, MethodCallHandler, EventChanne
           .putString("refresh_token", refreshToken)
           .putString("refresh_url", refreshUrl)
           .putString("api_base_url", apiBaseUrl)
+          .putString("payload_format", payloadFormat)
           .commit()  // Use commit() for synchronous write
         
         android.util.Log.i("NativeLocationTrackerPlugin", "Upload config saved to both prefs")

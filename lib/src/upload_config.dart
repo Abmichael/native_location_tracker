@@ -1,3 +1,5 @@
+import 'payload_format.dart';
+
 /// Configuration for native-side HTTP upload of location batches.
 ///
 /// Pass this to [BackgroundLocation.initialize] so the native platform
@@ -5,7 +7,7 @@
 ///
 /// ## Payload format
 ///
-/// The native uploader sends a JSON body to [uploadUrl]:
+/// By default the native uploader sends this JSON body to [uploadUrl]:
 /// ```json
 /// {
 ///   "points": [
@@ -13,6 +15,11 @@
 ///   ]
 /// }
 /// ```
+///
+/// Pass [payload] to change the envelope, the field names, the time format,
+/// the speed unit, or to add fixed root-level fields — see [PayloadFormat].
+/// The default reproduces the body above exactly, so an existing integration
+/// that does not set it sends what it always did.
 ///
 /// ## Token refresh
 ///
@@ -47,15 +54,21 @@ class UploadConfig {
   /// Base URL of the API (used for auxiliary native-side calls).
   final String? apiBaseUrl;
 
+  /// The shape of the uploaded JSON body.
+  ///
+  /// Defaults to the format this plugin has always sent, so leaving it out
+  /// changes nothing.
+  final PayloadFormat payload;
+
   const UploadConfig({
     required this.uploadUrl,
     this.accessToken,
     this.refreshToken,
     this.refreshUrl,
     this.apiBaseUrl,
+    this.payload = const PayloadFormat(),
   });
 
   /// The Authorization header value.
-  String? get authHeader =>
-      accessToken != null ? 'Bearer $accessToken' : null;
+  String? get authHeader => accessToken != null ? 'Bearer $accessToken' : null;
 }

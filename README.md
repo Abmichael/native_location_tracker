@@ -137,7 +137,57 @@ The native uploader POSTs JSON to your `uploadUrl`:
 }
 ```
 
-> **Note:** Speed is converted from m/s to km/h before upload.
+> **Note:** By default, speed is converted from m/s to km/h before upload.
+
+### Matching a different API
+
+Pass a `PayloadFormat` to change the shape. The defaults reproduce the body
+above exactly, so you only describe what differs:
+
+```dart
+await BackgroundLocation.initialize(
+  config: UploadConfig(
+    uploadUrl: 'https://api.example.com/trips/abc/points',
+    payload: PayloadFormat(
+      fields: {LocationField.time: 'recordedAt'},   // rename a field
+      timeFormat: TimeFormat.iso8601Utc,            // "2026-09-01T09:00:00.000Z"
+      speedUnit: SpeedUnit.metersPerSecond,         // skip the km/h conversion
+      extras: {'deviceId': deviceId},               // fixed root-level fields
+    ),
+  ),
+);
+```
+
+Which produces:
+
+```json
+{
+  "deviceId": "device-1",
+  "points": [
+    {
+      "lat": 9.0192,
+      "lng": 38.7525,
+      "recordedAt": "2026-09-01T09:00:00.000Z",
+      "speed": 12.5
+    }
+  ]
+}
+```
+
+| Option | Default | What it does |
+| --- | --- | --- |
+| `rootKey` | `'points'` | Key the array sits under. `null` POSTs a bare array as the whole body. |
+| `fields` | `{}` | Wire names, where they differ from `lat` / `lng` / `timestamp` / `accuracy` / `speed` / `heading`. |
+| `timeFormat` | `epochMillis` | Also `epochSeconds` or `iso8601Utc`. |
+| `speedUnit` | `kilometersPerHour` | `metersPerSecond` sends what the platform reported, unconverted. |
+| `extras` | `{}` | Fixed values merged into the root of every request. Ignored when `rootKey` is `null`. |
+| `omitNull` | `true` | Leave a field out when the platform did not report it, rather than sending `null`. |
+
+The format is data rather than a callback because the uploader runs where no
+Dart is alive — an Android foreground service, an iOS background `URLSession`
+that outlives the app. It is persisted alongside the upload URL so a batch
+finishing after the process is gone still sends the right shape. It cannot
+express nested envelopes, non-JSON encodings, or values computed at send time.
 
 ## Token Refresh
 

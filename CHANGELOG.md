@@ -1,5 +1,41 @@
 # Changelog
 
+## 0.5.0
+
+- **The uploaded body's shape is now configurable.** `UploadConfig` takes a
+  `PayloadFormat` describing the envelope key, the field names, how the time of
+  a fix is written, the unit speed is sent in, and any fixed root-level fields
+  the API wants alongside the points:
+
+  ```dart
+  UploadConfig(
+    uploadUrl: '.../points',
+    payload: PayloadFormat(
+      fields: {LocationField.time: 'recordedAt'},
+      timeFormat: TimeFormat.iso8601Utc,
+      speedUnit: SpeedUnit.metersPerSecond,
+      extras: {'deviceId': deviceId},
+    ),
+  )
+  ```
+
+  Until now the body was fixed — `{points: [{lat, lng, timestamp, ...}]}`, with
+  speed always converted to km/h because one backend wanted it that way. Any
+  API that named a field differently, wanted an ISO timestamp, or wanted the
+  platform's own speed could not be used without forking the plugin.
+
+  **Nothing changes for an existing integration.** The defaults reproduce the
+  old body exactly, including the km/h conversion; the new `SpeedUnit` is how
+  you opt out of it rather than something you now opt into.
+
+  The format is data, not a callback, because the uploader runs where no Dart
+  is alive — an Android foreground service, an iOS background `URLSession` that
+  outlives the app. It is persisted alongside the upload URL, so a batch
+  finishing after the process is gone still sends the right shape. An
+  unreadable or absent stored format falls back to the default rather than
+  failing the upload, which would strand points on the device with no way to
+  say why.
+
 ## 0.4.3
 
 - **iOS**: The plugin now captures the background-`URLSession` completion handler

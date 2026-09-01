@@ -98,6 +98,7 @@ public class NativeLocationTrackerPlugin: NSObject, FlutterPlugin, FlutterStream
         uploader.refreshToken = config?["refreshToken"] as? String
         uploader.refreshUrl = config?["refreshUrl"] as? String
         uploader.apiBaseUrl = config?["apiBaseUrl"] as? String
+        uploader.payloadFormatJson = config?["payloadFormat"] as? String
         uploader.persistConfig()
         NSLog("[NativeLocationTracker] Upload config set: url=\(uploader.uploadUrl ?? "nil")")
         result(true)

@@ -25,6 +25,7 @@ final class NativeLocationUploader: NSObject, URLSessionDataDelegate {
     private var _refreshToken: String?
     private var _refreshUrl: String?
     private var _apiBaseUrl: String?
+    private var _payloadFormatJson: String?
 
     var uploadUrl: String? {
         get { configLock.lock(); defer { configLock.unlock() }; return _uploadUrl }
@@ -46,6 +47,14 @@ final class NativeLocationUploader: NSObject, URLSessionDataDelegate {
     var apiBaseUrl: String? {
         get { configLock.lock(); defer { configLock.unlock() }; return _apiBaseUrl }
         set { configLock.lock(); _apiBaseUrl = newValue; configLock.unlock() }
+    }
+
+    /// The uploaded body's shape, as the JSON string Dart sent. Held raw and
+    /// parsed at send time so a stored config from an older build — which has
+    /// none — still reads back cleanly as the default.
+    var payloadFormatJson: String? {
+        get { configLock.lock(); defer { configLock.unlock() }; return _payloadFormatJson }
+        set { configLock.lock(); _payloadFormatJson = newValue; configLock.unlock() }
     }
 
     /// Set by the plugin (via Flutter's app-delegate forwarding) when iOS
@@ -96,6 +105,7 @@ final class NativeLocationUploader: NSObject, URLSessionDataDelegate {
         defaults.set(refreshToken, forKey: "nlt_refresh_token")
         defaults.set(refreshUrl, forKey: "nlt_refresh_url")
         defaults.set(apiBaseUrl, forKey: "nlt_api_base_url")
+        defaults.set(payloadFormatJson, forKey: "nlt_payload_format")
     }
 
     func restoreConfig() {
@@ -105,6 +115,7 @@ final class NativeLocationUploader: NSObject, URLSessionDataDelegate {
         refreshToken = defaults.string(forKey: "nlt_refresh_token")
         refreshUrl = defaults.string(forKey: "nlt_refresh_url")
         apiBaseUrl = defaults.string(forKey: "nlt_api_base_url")
+        payloadFormatJson = defaults.string(forKey: "nlt_payload_format")
     }
 
     // MARK: - Flush entry point
@@ -253,22 +264,10 @@ final class NativeLocationUploader: NSObject, URLSessionDataDelegate {
         return request
     }
 
-    /// Backend DTO for POST /location/update:
-    /// `{ points: [ { lat, lng, timestamp, heading?, speed?, accuracy? } ] }`.
-    /// NOTE: backend expects speed in km/h.
+    /// Builds the request body in whatever shape the host app configured.
+    /// Unset means the format this plugin sent before that was configurable.
     private func buildBody(rows: [LocationRow]) -> Data? {
-        let points: [[String: Any]] = rows.map { row in
-            var pt: [String: Any] = [
-                "lat": row.lat,
-                "lng": row.lng,
-                "timestamp": row.timestampMs,
-            ]
-            if let v = row.headingDeg { pt["heading"] = v }
-            if let v = row.speedMps { pt["speed"] = v * 3.6 }
-            if let v = row.accuracyM { pt["accuracy"] = v }
-            return pt
-        }
-        return try? JSONSerialization.data(withJSONObject: ["points": points])
+        return PayloadFormat.from(payloadFormatJson).buildBody(rows: rows)
     }
 
     private func encodeTaskInfo(ids: [Int64], file: String) -> String? {

@@ -5,7 +5,6 @@ import android.content.Context
 import android.database.sqlite.SQLiteDatabase
 import android.database.sqlite.SQLiteOpenHelper
 import android.util.Log
-import org.json.JSONArray
 import org.json.JSONObject
 import java.io.OutputStreamWriter
 import java.net.HttpURLConnection
@@ -59,6 +58,7 @@ class NativeLocationBuffer(private val context: Context) {
         private const val KEY_REFRESH_TOKEN = "refresh_token"
         private const val KEY_API_BASE_URL = "api_base_url"
         private const val KEY_REFRESH_URL = "refresh_url"
+        private const val KEY_PAYLOAD_FORMAT = "payload_format"
         
         const val STATUS_PENDING = 0
         const val STATUS_SENT = 1
@@ -319,24 +319,11 @@ class NativeLocationBuffer(private val context: Context) {
     ): Boolean {
         var connection: HttpURLConnection? = null
         try {
-            // Build payload matching POST /location/update DTO:
-            // { points: [ { lat, lng, timestamp?, heading?, speed?, accuracy? } ] }
-            // NOTE: backend expects speed in km/h.
-                val json = JSONObject().apply {
-                    put("points", JSONArray().apply {
-                        for (loc in locations) {
-                            put(JSONObject().apply {
-                                put("lat", loc.lat)
-                                put("lng", loc.lng)
-                                put("timestamp", loc.timestamp)
-                                loc.bearing?.let { put("heading", it) }
-                                loc.speed?.let { put("speed", it * 3.6) }
-                                loc.accuracy?.let { put("accuracy", it) }
-                            })
-                        }
-                    })
-                }
-            
+            // Shape comes from the host app's PayloadFormat; unset means the
+            // format this plugin sent before that was configurable.
+            val body = PayloadFormat.from(getConfig(KEY_PAYLOAD_FORMAT))
+                .buildBody(locations)
+
             connection = URL(url).openConnection() as HttpURLConnection
             connection.requestMethod = "POST"
             connection.setRequestProperty("Content-Type", "application/json")
@@ -345,9 +332,9 @@ class NativeLocationBuffer(private val context: Context) {
             connection.doOutput = true
             connection.connectTimeout = 15000
             connection.readTimeout = 15000
-            
+
             OutputStreamWriter(connection.outputStream).use { writer ->
-                writer.write(json.toString())
+                writer.write(body)
                 writer.flush()
             }
             

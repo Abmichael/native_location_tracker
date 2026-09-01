@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:device_info_plus/device_info_plus.dart';
@@ -194,6 +195,12 @@ class BackgroundLocationImpl implements BackgroundLocationManager {
         'refreshToken': _config.refreshToken,
         'refreshUrl': _config.refreshUrl,
         'apiBaseUrl': _config.apiBaseUrl,
+        // Sent as an encoded string rather than a nested map: it is persisted
+        // verbatim on both platforms so a batch uploading after the app has
+        // been killed can still read it, and a string survives that trip
+        // through SharedPreferences and UserDefaults without needing a schema
+        // on either side.
+        'payloadFormat': jsonEncode(_config.payload.toMap()),
       });
     } catch (e) {
       print('NativeLocationTracker: Failed to configure native upload: $e');
