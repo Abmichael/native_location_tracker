@@ -26,6 +26,7 @@ final class NativeLocationUploader: NSObject, URLSessionDataDelegate {
     private var _refreshUrl: String?
     private var _apiBaseUrl: String?
     private var _payloadFormatJson: String?
+    private var _terminalResponseJson: String?
 
     var uploadUrl: String? {
         get { configLock.lock(); defer { configLock.unlock() }; return _uploadUrl }
@@ -55,6 +56,34 @@ final class NativeLocationUploader: NSObject, URLSessionDataDelegate {
     var payloadFormatJson: String? {
         get { configLock.lock(); defer { configLock.unlock() }; return _payloadFormatJson }
         set { configLock.lock(); _payloadFormatJson = newValue; configLock.unlock() }
+    }
+
+    /// Which refusals mean "stop", as the JSON string Dart sent. Held raw and
+    /// parsed at send time so a stored config from an older build — which has
+    /// none — still reads back cleanly as "nothing is terminal".
+    var terminalResponseJson: String? {
+        get { configLock.lock(); defer { configLock.unlock() }; return _terminalResponseJson }
+        set { configLock.lock(); _terminalResponseJson = newValue; configLock.unlock() }
+    }
+
+    /// Set once the server has refused uploads for good. Read by the plugin so
+    /// Dart can be told, and cleared whenever a new upload config arrives.
+    private(set) var isTerminal = false
+
+    /// Called when uploads are refused for good, so tracking can be stopped —
+    /// collecting more positions would only fill a queue that can never drain.
+    var onTerminal: (() -> Void)?
+
+    func clearTerminal() {
+        isTerminal = false
+    }
+
+    private func markTerminal(status: Int, reason: String) {
+        guard !isTerminal else { return }
+        isTerminal = true
+        lastError = reason
+        NSLog("[NativeUploader] Uploads refused permanently (HTTP \(status)) — stopping.")
+        onTerminal?()
     }
 
     /// Set by the plugin (via Flutter's app-delegate forwarding) when iOS
@@ -106,6 +135,7 @@ final class NativeLocationUploader: NSObject, URLSessionDataDelegate {
         defaults.set(refreshUrl, forKey: "nlt_refresh_url")
         defaults.set(apiBaseUrl, forKey: "nlt_api_base_url")
         defaults.set(payloadFormatJson, forKey: "nlt_payload_format")
+        defaults.set(terminalResponseJson, forKey: "nlt_terminal_response")
     }
 
     func restoreConfig() {
@@ -116,6 +146,7 @@ final class NativeLocationUploader: NSObject, URLSessionDataDelegate {
         refreshUrl = defaults.string(forKey: "nlt_refresh_url")
         apiBaseUrl = defaults.string(forKey: "nlt_api_base_url")
         payloadFormatJson = defaults.string(forKey: "nlt_payload_format")
+        terminalResponseJson = defaults.string(forKey: "nlt_terminal_response")
     }
 
     // MARK: - Flush entry point
@@ -184,14 +215,43 @@ final class NativeLocationUploader: NSObject, URLSessionDataDelegate {
         let sem = DispatchSemaphore(value: 0)
         var statusCode = -1
         var responseError: Error?
+        var responseBody: Data?
 
-        let task = foregroundSession.dataTask(with: request) { _, response, error in
+        let task = foregroundSession.dataTask(with: request) { data, response, error in
             statusCode = (response as? HTTPURLResponse)?.statusCode ?? -1
             responseError = error
+            responseBody = data
             sem.signal()
         }
         task.resume()
         sem.wait()
+
+        if statusCode >= 200 && statusCode < 300 {
+            return true
+        }
+
+        // Asked before the refresh below, so a permanent refusal is not spent
+        // on a token rotation that cannot help it — and so a status the host
+        // app has declared terminal wins over this plugin's reading of it.
+        let terminal = TerminalResponse.from(terminalResponseJson)
+        if !terminal.isEmpty {
+            let body = terminal.hasMessages
+                ? responseBody.flatMap { String(data: $0, encoding: .utf8) }
+                : nil
+
+            if terminal.matches(status: statusCode, body: body) {
+                // Dropped rather than left pending: they have been refused for
+                // good, and keeping them would retry them — or upload them to
+                // whatever session this device is configured for next, since
+                // the queue is not keyed by upload URL.
+                NativeLocationVault.shared.deleteSent(ids: rows.map { $0.id })
+                markTerminal(
+                    status: statusCode,
+                    reason: terminal.describe(status: statusCode)
+                )
+                return false
+            }
+        }
 
         if statusCode == 401 && allowRefresh {
             NSLog("[NativeUploader] 401 — attempting token refresh")
@@ -200,9 +260,6 @@ final class NativeLocationUploader: NSObject, URLSessionDataDelegate {
             }
         }
 
-        if statusCode >= 200 && statusCode < 300 {
-            return true
-        }
         lastError = "HTTP \(statusCode): \(responseError?.localizedDescription ?? "unknown")"
         NSLog("[NativeUploader] Upload failed: \(lastError ?? "?")")
         return false
@@ -355,6 +412,17 @@ final class NativeLocationUploader: NSObject, URLSessionDataDelegate {
             lastUploadAt = Int64(Date().timeIntervalSince1970 * 1000)
             lastError = nil
         } else {
+            // Status only here. A background upload task reports no body to
+            // this delegate, so a message-only rule cannot fire on this path —
+            // one more reason to prefer a status code over matching on copy.
+            let terminal = TerminalResponse.from(terminalResponseJson)
+
+            if error == nil, terminal.matches(status: status, body: nil) {
+                NativeLocationVault.shared.deleteSent(ids: info.ids)
+                markTerminal(status: status, reason: terminal.describe(status: status))
+                return
+            }
+
             // Return the rows to pending so a later flush retries them.
             NativeLocationVault.shared.resetPending(ids: info.ids)
             lastError = error?.localizedDescription ?? "HTTP \(status)"

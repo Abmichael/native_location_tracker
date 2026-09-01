@@ -282,7 +282,7 @@ class LocationForegroundService : Service() {
         stopStillHeartbeat()
         motionStateManager.stop()
         // Final upload attempt before stopping
-        nativeBuffer.uploadPendingLocations { _, _ -> }
+        nativeBuffer.uploadPendingLocations { _, _, _ -> }
         releaseWakeLock()
         stopForegroundService()
         isServiceRunning = false
@@ -811,7 +811,7 @@ class LocationForegroundService : Service() {
         android.util.Log.i("LocationService", "App task removed, triggering upload and re-registering location updates...")
         
         // Trigger immediate upload of any buffered locations
-        nativeBuffer.uploadPendingLocations { success, count ->
+        nativeBuffer.uploadPendingLocations { success, count, _ ->
             android.util.Log.i("LocationService", "Background upload: success=$success, count=$count")
         }
         
@@ -865,8 +865,8 @@ class LocationForegroundService : Service() {
         val pendingCount = nativeBuffer.getPendingCount()
         if (pendingCount > 0) {
             android.util.Log.i("LocationService", "Uploading $pendingCount buffered locations...")
-            nativeBuffer.uploadPendingLocations { success, count ->
-                android.util.Log.i("LocationService", "Native upload: success=$success, count=$count")
+            nativeBuffer.uploadPendingLocations { success, count, terminal ->
+                android.util.Log.i("LocationService", "Native upload: success=$success, count=$count, terminal=$terminal")
                 // Persist last upload metadata for state observability
                 if (count > 0) {
                     prefs.edit()
@@ -878,6 +878,30 @@ class LocationForegroundService : Service() {
                         .putString("last_upload_error", "Upload failed at ${System.currentTimeMillis()}")
                         .apply()
                 }
+
+                if (terminal) {
+                    // The server has refused these uploads for good, so there
+                    // is nothing left for this service to do: collecting more
+                    // positions would only fill a queue that can never drain.
+                    // Recorded before stopping, because stopping tears down the
+                    // state emitter.
+                    prefs.edit()
+                        .putString(
+                            "last_upload_error",
+                            nativeBuffer.lastTerminalReason ?: "terminal_response"
+                        )
+                        .putBoolean("upload_terminal", true)
+                        .commit()
+
+                    android.util.Log.w(
+                        "LocationService",
+                        "Uploads refused permanently — stopping tracking."
+                    )
+                    emitNativeState()
+                    stopSelf()
+                    return@uploadPendingLocations
+                }
+
                 // Emit state update to Dart (P0.4)
                 emitNativeState()
             }
@@ -894,7 +918,15 @@ class LocationForegroundService : Service() {
             "pendingCount" to nativeBuffer.getPendingCount(),
             "lastUploadAt" to prefs.getLong("last_upload_at", 0L),
             "lastError" to prefs.getString("last_upload_error", null),
-            "uploaderState" to if (isServiceRunning) "active" else "idle"
+            // "terminal" outranks the other two: the service may still be up
+            // for the moment it takes to stop, and a driver's screen reading
+            // "active" then would be describing a tracker that has already
+            // been refused.
+            "uploaderState" to when {
+                prefs.getBoolean("upload_terminal", false) -> "terminal"
+                isServiceRunning -> "active"
+                else -> "idle"
+            }
         ))
     }
     

@@ -1,4 +1,5 @@
 import 'payload_format.dart';
+import 'terminal_response.dart';
 
 /// Configuration for native-side HTTP upload of location batches.
 ///
@@ -60,6 +61,13 @@ class UploadConfig {
   /// changes nothing.
   final PayloadFormat payload;
 
+  /// Responses that mean "stop" rather than "try again later".
+  ///
+  /// Empty by default: without it every non-2xx is retried indefinitely, which
+  /// is right for a tunnel and wrong for a trip that has ended. See
+  /// [TerminalResponse].
+  final TerminalResponse terminal;
+
   const UploadConfig({
     required this.uploadUrl,
     this.accessToken,
@@ -67,6 +75,7 @@ class UploadConfig {
     this.refreshUrl,
     this.apiBaseUrl,
     this.payload = const PayloadFormat(),
+    this.terminal = TerminalResponse.none,
   });
 
   /// The Authorization header value.

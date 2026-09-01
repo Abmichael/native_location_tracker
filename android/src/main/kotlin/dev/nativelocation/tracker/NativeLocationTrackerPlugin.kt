@@ -146,6 +146,10 @@ class NativeLocationTrackerPlugin: FlutterPlugin, MethodCallHandler, EventChanne
         // upload time, so a batch that goes out after the app is gone still
         // knows what the server expects. Absent means the historical default.
         val payloadFormat = config?.get("payloadFormat") as? String
+        // Which refusals mean "stop" rather than "retry later". Persisted for
+        // the same reason as the payload format: a batch may go out long after
+        // the app is gone.
+        val terminalResponse = config?.get("terminalResponse") as? String
 
         android.util.Log.i("NativeLocationTrackerPlugin", "Setting upload config: url=$uploadUrl")
 
@@ -157,6 +161,12 @@ class NativeLocationTrackerPlugin: FlutterPlugin, MethodCallHandler, EventChanne
           .putString("refresh_url", refreshUrl)
           .putString("api_base_url", apiBaseUrl)
           .putString("payload_format", payloadFormat)
+          .putString("terminal_response", terminalResponse)
+          // A new configuration is a new session. Left set, one refusal would
+          // make every later session report "terminal" before it had sent
+          // anything at all.
+          .remove("upload_terminal")
+          .remove("last_upload_error")
           .commit()  // Use commit() for synchronous write
 
         // Also save to NativeBuffer's prefs directly
@@ -168,6 +178,7 @@ class NativeLocationTrackerPlugin: FlutterPlugin, MethodCallHandler, EventChanne
           .putString("refresh_url", refreshUrl)
           .putString("api_base_url", apiBaseUrl)
           .putString("payload_format", payloadFormat)
+          .putString("terminal_response", terminalResponse)
           .commit()  // Use commit() for synchronous write
         
         android.util.Log.i("NativeLocationTrackerPlugin", "Upload config saved to both prefs")
@@ -349,7 +360,7 @@ class NativeLocationTrackerPlugin: FlutterPlugin, MethodCallHandler, EventChanne
             )
           }
 
-          buffer.uploadPendingLocations { success, uploaded ->
+          buffer.uploadPendingLocations { success, uploaded, _ ->
             buffer.close()
             result.success(mapOf(
               "success" to success,

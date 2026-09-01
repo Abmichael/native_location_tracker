@@ -201,6 +201,7 @@ class BackgroundLocationImpl implements BackgroundLocationManager {
         // through SharedPreferences and UserDefaults without needing a schema
         // on either side.
         'payloadFormat': jsonEncode(_config.payload.toMap()),
+        'terminalResponse': jsonEncode(_config.terminal.toMap()),
       });
     } catch (e) {
       print('NativeLocationTracker: Failed to configure native upload: $e');

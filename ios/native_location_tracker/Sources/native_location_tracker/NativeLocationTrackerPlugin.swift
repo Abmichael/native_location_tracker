@@ -29,6 +29,14 @@ public class NativeLocationTrackerPlugin: NSObject, FlutterPlugin, FlutterStream
     if #available(iOS 13.0, *) {
         BackgroundTaskManager.shared.registerBGTask()
     }
+
+    // Uploads refused for good stop the tracker: there is no point collecting
+    // positions into a queue that can never drain. Set here rather than at
+    // configure time so it survives a relaunch to finish background transfers,
+    // where setUploadConfig has not run.
+    NativeLocationUploader.shared.onTerminal = { [weak instance] in
+        instance?.locationManager.stopTracking()
+    }
   }
 
   /// Captures the completion handler iOS provides when it relaunches the app to
@@ -99,6 +107,10 @@ public class NativeLocationTrackerPlugin: NSObject, FlutterPlugin, FlutterStream
         uploader.refreshUrl = config?["refreshUrl"] as? String
         uploader.apiBaseUrl = config?["apiBaseUrl"] as? String
         uploader.payloadFormatJson = config?["payloadFormat"] as? String
+        uploader.terminalResponseJson = config?["terminalResponse"] as? String
+        // A new configuration is a new session. Left set, one refusal would
+        // make every later session report terminal before it had sent anything.
+        uploader.clearTerminal()
         uploader.persistConfig()
         NSLog("[NativeLocationTracker] Upload config set: url=\(uploader.uploadUrl ?? "nil")")
         result(true)
@@ -121,7 +133,12 @@ public class NativeLocationTrackerPlugin: NSObject, FlutterPlugin, FlutterStream
             "isTracking": locationManager.isTracking,
             "sessionId": sessionId,
             "pendingCount": pendingCount,
-            "uploaderState": locationManager.isTracking ? "active" : "idle"
+            // "terminal" outranks the other two: tracking may still be up for
+            // the moment it takes to stop, and reporting "active" then would
+            // describe a tracker that has already been refused for good.
+            "uploaderState": uploader.isTerminal
+                ? "terminal"
+                : (locationManager.isTracking ? "active" : "idle")
         ]
         if uploader.lastUploadAt > 0 {
             state["lastUploadAt"] = uploader.lastUploadAt

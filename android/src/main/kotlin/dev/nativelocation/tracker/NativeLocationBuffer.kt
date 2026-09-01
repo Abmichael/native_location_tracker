@@ -59,6 +59,7 @@ class NativeLocationBuffer(private val context: Context) {
         private const val KEY_API_BASE_URL = "api_base_url"
         private const val KEY_REFRESH_URL = "refresh_url"
         private const val KEY_PAYLOAD_FORMAT = "payload_format"
+        private const val KEY_TERMINAL_RESPONSE = "terminal_response"
         
         const val STATUS_PENDING = 0
         const val STATUS_SENT = 1
@@ -70,6 +71,12 @@ class NativeLocationBuffer(private val context: Context) {
     private val dbHelper: DatabaseHelper
     private val executor = Executors.newSingleThreadExecutor()
     private val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+
+    /// Why the last upload was refused for good, for the state Dart reads.
+    /// Null until one is.
+    @Volatile
+    var lastTerminalReason: String? = null
+        private set
     
     init {
         dbHelper = DatabaseHelper(context)
@@ -242,14 +249,16 @@ class NativeLocationBuffer(private val context: Context) {
      * On success, rows are deleted immediately then the next page is fetched
      * until the queue is drained or a failure occurs.
      */
-    fun uploadPendingLocations(callback: (success: Boolean, count: Int) -> Unit) {
+    fun uploadPendingLocations(
+        callback: (success: Boolean, count: Int, terminal: Boolean) -> Unit
+    ) {
         executor.execute {
             val uploadUrl = getConfig(KEY_UPLOAD_URL)
             val authToken = getConfig(KEY_AUTH_TOKEN)
             
             if (uploadUrl.isNullOrBlank()) {
                 Log.w(TAG, "No upload URL configured (key=$KEY_UPLOAD_URL)")
-                callback(false, 0)
+                callback(false, 0, false)
                 return@execute
             }
             
@@ -257,6 +266,7 @@ class NativeLocationBuffer(private val context: Context) {
             
             var totalUploaded = 0
             var anyFailed = false
+            var anyTerminal = false
             var requestCount = 0
             val maxRequestsPerFlush = 10
 
@@ -270,13 +280,27 @@ class NativeLocationBuffer(private val context: Context) {
 
                 for ((sessionId, locations) in sessionGroups) {
                     try {
-                        val success = doUpload(uploadUrl, authToken, sessionId, locations)
+                        val outcome = doUpload(uploadUrl, authToken, sessionId, locations)
                         requestCount += 1
-                        if (success) {
-                            markSent(locations.map { it.id })
-                            totalUploaded += locations.size
-                        } else {
-                            anyFailed = true
+                        when (outcome) {
+                            UploadOutcome.SUCCESS -> {
+                                markSent(locations.map { it.id })
+                                totalUploaded += locations.size
+                            }
+
+                            UploadOutcome.TERMINAL -> {
+                                // Cleared rather than kept. These points have
+                                // been refused for good, and leaving them
+                                // pending would retry them on the next tick —
+                                // or, worse, upload them to whatever session
+                                // this device is configured for next, since the
+                                // queue is not keyed by upload URL.
+                                markSent(locations.map { it.id })
+                                anyTerminal = true
+                                break@uploadLoop
+                            }
+
+                            UploadOutcome.RETRY -> anyFailed = true
                         }
 
                         // Prevent hammering the server/terminal during large backlogs.
@@ -300,13 +324,13 @@ class NativeLocationBuffer(private val context: Context) {
                 // Stop pagination on any failure to avoid tight retry loop.
                 if (anyFailed) break
             }
-            
-            callback(!anyFailed, totalUploaded)
+
+            callback(!anyFailed && !anyTerminal, totalUploaded, anyTerminal)
         }
     }
 
     
-    private fun doUpload(url: String, authToken: String?, sessionId: String, locations: List<LocationEntry>): Boolean {
+    private fun doUpload(url: String, authToken: String?, sessionId: String, locations: List<LocationEntry>): UploadOutcome {
         return doUploadInternal(url, authToken, sessionId, locations, allowRefresh = true)
     }
 
@@ -316,7 +340,7 @@ class NativeLocationBuffer(private val context: Context) {
         sessionId: String,
         locations: List<LocationEntry>,
         allowRefresh: Boolean
-    ): Boolean {
+    ): UploadOutcome {
         var connection: HttpURLConnection? = null
         try {
             // Shape comes from the host app's PayloadFormat; unset means the
@@ -341,6 +365,29 @@ class NativeLocationBuffer(private val context: Context) {
             val responseCode = connection.responseCode
             Log.i(TAG, "Upload response: $responseCode for ${locations.size} locations")
 
+            if (responseCode in 200..299) return UploadOutcome.SUCCESS
+
+            // Asked before the refresh below, so a permanent refusal is not
+            // spent on a token rotation that cannot help it — and so a status
+            // the host app has declared terminal wins over this plugin's
+            // built-in reading of it.
+            val terminal = TerminalResponse.from(getConfig(KEY_TERMINAL_RESPONSE))
+            if (!terminal.isEmpty) {
+                // Read only when there is something to match: the error stream
+                // costs a round of IO, and most failures are network ones with
+                // nothing in them.
+                val errorBody = if (terminal.hasMessages) readErrorBody(connection) else null
+
+                if (terminal.matches(responseCode, errorBody)) {
+                    Log.w(
+                        TAG,
+                        "Upload refused permanently (HTTP $responseCode). Not retrying."
+                    )
+                    lastTerminalReason = terminal.describe(responseCode)
+                    return UploadOutcome.TERMINAL
+                }
+            }
+
             if (responseCode == 401 && allowRefresh) {
                 Log.w(TAG, "Upload unauthorized (401). Attempting refresh-token rotation...")
                 val refreshed = refreshAccessToken()
@@ -350,12 +397,24 @@ class NativeLocationBuffer(private val context: Context) {
                 }
             }
 
-            return responseCode in 200..299
+            return UploadOutcome.RETRY
         } catch (e: Exception) {
+            // A transport failure is never terminal: the server did not answer,
+            // so nothing has been refused.
             Log.e(TAG, "Upload error: ${e.message}")
-            return false
+            return UploadOutcome.RETRY
         } finally {
             connection?.disconnect()
+        }
+    }
+
+    /** Best-effort: a body that cannot be read simply does not match. */
+    private fun readErrorBody(connection: HttpURLConnection): String? {
+        return try {
+            connection.errorStream?.bufferedReader()?.use { it.readText() }
+        } catch (e: Exception) {
+            Log.w(TAG, "Could not read the refusal body: ${e.message}")
+            null
         }
     }
 

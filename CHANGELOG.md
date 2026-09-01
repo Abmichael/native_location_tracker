@@ -1,5 +1,44 @@
 # Changelog
 
+## 0.6.0
+
+- **The uploader can be told which refusals are permanent.** `UploadConfig`
+  takes a `TerminalResponse` naming the HTTP statuses — and, as a fallback, the
+  response-body fragments — that mean "stop" rather than "try again later":
+
+  ```dart
+  UploadConfig(
+    uploadUrl: '.../points',
+    terminal: TerminalResponse(
+      statuses: {409, 410},
+      messages: ['unknown link'],   // only where a status cannot be agreed
+    ),
+  )
+  ```
+
+  Until now every non-2xx was retried indefinitely. That is right for a tunnel
+  and wrong for an answer that will never change — a trip that has ended, a
+  session claimed by another device, a revoked token. A phone would keep
+  uploading to a dead endpoint for as long as the app stayed installed.
+
+  On a terminal response the batch is **dropped rather than kept** (it can never
+  be delivered, and the queue is not keyed by upload URL, so holding it would
+  eventually post those points to whatever session the device is configured for
+  next), tracking is stopped, and `uploaderState` becomes `terminal` with
+  `lastError` naming the status. A new `setUploadConfig` clears the flag, so the
+  next session starts clean.
+
+  Statuses are the mechanism to prefer. `messages` is a heuristic for the case
+  where the natural status is one the uploader must keep treating as retryable
+  — `401`, which drives token refresh, is the example that motivated it. It
+  matches case-insensitively as a substring, depends on server copy nobody has
+  promised to keep stable, and will stop working silently the day that copy is
+  reworded. On iOS's background-transfer path there is no body to match at all,
+  so a message-only rule cannot fire there.
+
+  **Nothing changes for an existing integration**: the default is empty, and an
+  empty `TerminalResponse` retries everything exactly as before.
+
 ## 0.5.0
 
 - **The uploaded body's shape is now configurable.** `UploadConfig` takes a

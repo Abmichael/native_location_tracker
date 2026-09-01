@@ -189,6 +189,37 @@ that outlives the app. It is persisted alongside the upload URL so a batch
 finishing after the process is gone still sends the right shape. It cannot
 express nested envelopes, non-JSON encodings, or values computed at send time.
 
+## Refusals that are permanent
+
+By default every non-2xx is retried on the next flush. That is right for a
+tunnel and wrong for an answer that will never change, so a phone can end up
+uploading to a dead endpoint indefinitely.
+
+Name the responses that mean *stop*:
+
+```dart
+UploadConfig(
+  uploadUrl: 'https://api.example.com/trips/abc/points',
+  terminal: TerminalResponse(
+    statuses: {409, 410},          // gone, or claimed by another device
+    messages: ['unknown link'],    // fallback — see below
+  ),
+)
+```
+
+On a match the batch is dropped, tracking stops, and the state stream reports
+`uploaderState: 'terminal'` with `lastError` naming the status. Configuring a
+new upload clears it.
+
+**Prefer `statuses`.** `messages` exists for the case where the natural status
+is one the uploader must keep treating as retryable — `401` is the example,
+because it drives token refresh and cannot be made terminal wholesale even on an
+endpoint where nothing can be refreshed. It matches case-insensitively as a
+substring of the response body, depends on server copy nobody has promised to
+keep stable, and will stop working silently the day that copy changes. On iOS's
+background-transfer path no body reaches the delegate, so a message-only rule
+cannot fire there.
+
 ## Token Refresh
 
 If you provide a `refreshUrl`, the native uploader will POST
